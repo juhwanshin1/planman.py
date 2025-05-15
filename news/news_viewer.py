@@ -3,22 +3,35 @@
 import requests
 from bs4 import BeautifulSoup
 
-def get_korean_news_headlines(url="https://rss.etnews.com/Section901.xml"):
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
-        response = requests.get(url, headers=headers, timeout=5)
-        response.raise_for_status()
+# 뉴스 카테고리별 URL
+CATEGORY_RSS = {
+    "정치": "https://www.yna.co.kr/rss/politics.xml",
+    "경제": "https://www.yna.co.kr/rss/economy.xml",
+    "사회/문화": "https://rss.etnews.com/Section904.xml",
+    "산업/과학": "https://rss.etnews.com/Section903.xml",
+    "세계": "https://www.yna.co.kr/rss/international.xml"
+}
 
-        soup = BeautifulSoup(response.content, "xml")
+# 뉴스 제목 출력
+def get_news_items_by_category(category):
+    url = CATEGORY_RSS.get(category)
+    if not url:
+        return [{"title": f"❌ '{category}' 카테고리에 대한 RSS가 없습니다.", "link": ""}]
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        res = requests.get(url, headers=headers, timeout=5)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.content, "xml")
         items = soup.find_all("item")
 
-        if not items:
-            return ["❌ 뉴스 기사를 찾을 수 없습니다."]
+        news_list = []
+        for item in items[:10]:
+            title = item.title.text.strip()
+            link = item.link.text.strip()
+            news_list.append({"title": title, "link": link})
 
-        headlines = [item.title.text.strip() for item in items[:5]]
-        return headlines
+        return news_list if news_list else [{"title": "❌ 뉴스 없음", "link": ""}]
 
     except Exception as e:
-        return [f"❌ 뉴스 불러오기 실패: {str(e)}"]
+        return [{"title": f"❌ 뉴스 로드 실패: {str(e)}", "link": ""}]
