@@ -39,7 +39,7 @@ def launch_main_gui():
 
 def on_news_click():
     news_window = tk.Toplevel()
-    news_window.title("📰 카테고리별 뉴스 보기")
+    news_window.title("📰 카테고리별 뉴스 보기  (더블클릭 시 원문으로 이동)")
     news_window.geometry("800x600")
 
     # 상단 카테고리 버튼 프레임 추가
