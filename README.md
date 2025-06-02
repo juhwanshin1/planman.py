@@ -36,5 +36,24 @@ Plan Man은 일정을 체계적으로 관리하고, AI 기반의 공부 계획�
 
 ---
 
+## ⚠️ API 키 설정 안내
+
+본 애플리케이션을 실행하기 위해서는 다음 API 키들이 필요하며, 환경 변수로 설정해야 합니다.
+
+1.  **기상청 API 키 (`KMA_API_KEY`)**:
+    * [공공데이터포털](https
+://www.data.go.kr/) 등에서 기상청 초단기예보 API 활용신청 후 발급받은 일반 인증키(decoding)를 사용하세요.
+    * 환경 변수 설정 예시:
+        * Windows: `set KMA_API_KEY=여러분의_KMA_API_키`
+        * macOS/Linux: `export KMA_API_KEY="여러분의_KMA_API_키"`
+
+2.  **Google Gemini API 키 (`GEMINI_API_KEY`)**:
+    * [Google AI Studio](https://aistudio.google.com/app/apikey)에서 API 키를 발급받으세요.
+    * 환경 변수 설정 예시:
+        * Windows: `set GEMINI_API_KEY=여러분의_GEMINI_API_키`
+        * macOS/Linux: `export GEMINI_API_KEY="여러분의_GEMINI_API_키"`
+
+애플리케이션 실행 전에 위 환경 변수들을 설정해주세요.
+
 ## 🗂️ 프로젝트 구조
 

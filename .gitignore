@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+venv/
+pip-selfcheck.json
+pip-log.txt
+
+# IDE
+.idea/
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Application specific
+schedule_data.json
+*.log
