@@ -1,20 +1,26 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from news.news_viewer import get_news_items_by_category
-from plancalendar.calendar_planman import launch_calendar_viewer  # 일정 관리 UI
+from plancalendar.calendar_planman import launch_calendar_viewer, add_event_to_calendar
 from tkcalendar import DateEntry
-from exam_ai.exam_scheduler_ai import generate_exam_plan  # Gemini AI 연동 함수
+from exam_ai.exam_scheduler_ai import generate_exam_plan, extract_schedule_from_plan
 
-# 뉴스 카테고리 목록
 CATEGORIES = ["정치", "경제", "사회/문화", "산업/과학", "세계"]
 
+def raise_topmost(win):
+    win.attributes("-topmost", True)
+    win.lift()
+    win.after(0, lambda: win.attributes("-topmost", False))
+
 def on_schedule_click():
+    # launch_calendar_viewer 내부에서 Toplevel 처리됨
     launch_calendar_viewer()
 
 def on_news_click():
     news_window = tk.Toplevel()
     news_window.title("카테고리별 뉴스 보기")
     news_window.geometry("800x600")
+    raise_topmost(news_window)
 
     tab_control = ttk.Notebook(news_window)
 
@@ -29,13 +35,13 @@ def on_news_click():
 
         for item in items:
             listbox.insert(tk.END, item['title'])
-            listbox.insert(tk.END, "")  # 한 줄 띄우기
+            listbox.insert(tk.END, "")
 
         def make_open_article_function(local_items):
             def open_article(event):
                 index = event.widget.curselection()
                 if index:
-                    actual_index = index[0] // 2  # 줄 띄움 보정
+                    actual_index = index[0] // 2
                     if actual_index < len(local_items):
                         url = local_items[actual_index]['link']
                         if url:
@@ -84,14 +90,32 @@ def on_exam_plan_click():
         result_window = tk.Toplevel()
         result_window.title("공부 계획 결과")
         result_window.geometry("600x400")
+        raise_topmost(result_window)
 
         text_area = tk.Text(result_window, wrap=tk.WORD, font=("Arial", 12))
         text_area.insert(tk.END, plan_text)
         text_area.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
 
+        # ✅ 자동 반영 여부 묻기
+        if messagebox.askyesno("일정 반영", "AI가 생성한 공부 계획을 캘린더에 반영할까요?"):
+            schedule_list = extract_schedule_from_plan(plan_text)
+            for item in schedule_list:
+                add_event_to_calendar(item['date'], item['title'], time="18:00 ~ 20:00")
+            messagebox.showinfo("완료", f"{len(schedule_list)}개의 일정이 추가되었습니다.")
+
+        def confirm_add():
+            if messagebox.askyesno("캘린더 반영", "이 계획을 다시 캘린더에 반영할까요?"):
+                schedule_list = extract_schedule_from_plan(plan_text)
+                for item in schedule_list:
+                    add_event_to_calendar(item['date'], item['title'], time="18:00 ~ 20:00")
+                messagebox.showinfo("완료", "캘린더에 반영 완료")
+
+        ttk.Button(result_window, text="캘린더에 반영", command=confirm_add).pack(pady=10)
+
     popup = tk.Toplevel()
     popup.title("📘 시험 과목 입력")
     popup.geometry("400x420")
+    raise_topmost(popup)
 
     tk.Label(popup, text="과목명:").pack()
     subject_entry = tk.Entry(popup, width=30)
@@ -122,6 +146,7 @@ def launch_main_gui():
     root = tk.Tk()
     root.title("Plan Man")
     root.geometry("800x800+200+100")
+    raise_topmost(root)
 
     title = tk.Label(root, text="📚 PLAN MAN", font=("Arial", 28))
     title.pack(pady=15)

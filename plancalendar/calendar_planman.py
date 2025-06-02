@@ -4,10 +4,14 @@ from datetime import datetime, timedelta
 import tkinter as tk
 from tkinter import ttk, simpledialog, messagebox
 from tkcalendar import Calendar
+import threading
+import random
+from win10toast import ToastNotifier
+
+toaster = ToastNotifier()
 
 DATA_FILE = "schedule_data.json"
 
-# Load and save data
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -18,31 +22,65 @@ def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# Launch calendar UI
+def add_event_to_calendar(date: str, title: str, time: str = "", color: str = "blue", pinned: bool = False):
+    data = load_data()
+    if date not in data:
+        data[date] = {"events": [], "checklist": []}
+    data[date]["events"].append({
+        "title": title,
+        "time": time,
+        "color": color,
+        "pinned": pinned
+    })
+    save_data(data)
+
+def check_alarms():
+    def alert_thread():
+        now = datetime.now()
+        data = load_data()
+        for date_str, content in data.items():
+            for event in content.get("events") or []:
+                event_time = event.get("time", "")
+                if event_time:
+                    try:
+                        date_time_str = f"{date_str} {event_time.split('~')[0].strip()}"
+                        event_dt = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
+                        diff_sec = (event_dt - now).total_seconds()
+                        if 0 <= diff_sec <= 7200:
+                            toaster.show_toast("⏰ 임박한 일정!", f"{event['title']} - {date_time_str}", duration=10)
+                        elif 0 <= diff_sec <= 86400:
+                            toaster.show_toast("📅 다가오는 일정", f"{event['title']} - {date_time_str}", duration=10)
+                    except:
+                        pass
+    threading.Thread(target=alert_thread, daemon=True).start()
+
 def launch_calendar_viewer():
     root = tk.Toplevel()
-    root.title("📅 Plan Man 일정 관리")
+    root.title("\ud83d\uddd5 Plan Man \uc77c\uc815 \uad00\ub9ac")
     root.geometry("900x700")
+    root.attributes("-topmost", True)
+    root.after(500, lambda: root.attributes("-topmost", False))
 
     data = load_data()
 
-    def refresh_all():
-        date = cal.get_date()
-        events = data.get(date, {}).get("events", [])
-        checklist = data.get(date, {}).get("checklist", [])
+    def get_selected_date():
+        return datetime.strptime(cal.get_date(), "%Y-%m-%d").strftime("%Y-%m-%d")
 
-        # 일정 리스트
+    def refresh_all():
+        date = get_selected_date()
+        events = data.get(date, {}).get("events") or []
+        checklist = data.get(date, {}).get("checklist") or []
+
         event_listbox.delete(0, tk.END)
         if not events:
-            event_listbox.insert(tk.END, "📖 일정이 없습니다.")
+            event_listbox.insert(tk.END, "\ud83d\udcd6 \uc77c\uc815\uc774 \uc5c6\uc2b5\ub2c8\ub2e4.")
         else:
             sorted_events = sorted(events, key=lambda e: e.get("time", ""))
-            for idx, e in enumerate(sorted_events):
-                mark = "📌 " if e.get("pinned") else ""
+            for e in sorted_events:
+                mark = "\ud83d\udccc " if e.get("pinned") else ""
                 display = f"{mark}{e.get('title')} [{e.get('time', '')}]"
                 event_listbox.insert(tk.END, display)
 
-        # 체크리스트
         checklist_frame_clear()
         for idx, item in enumerate(checklist):
             var = tk.BooleanVar(value=item.get("done", False))
@@ -51,42 +89,38 @@ def launch_calendar_viewer():
             cb.pack(anchor="w")
 
     def add_event():
-        date = cal.get_date()
-        title = simpledialog.askstring("일정 추가", "일정 제목:")
+        date = get_selected_date()
+        title = simpledialog.askstring("\uc77c\uc815 \ucd94\uac00", "\uc77c\uc815 \uc81c\ubaa9:", parent=root)
         if not title: return
-        time = simpledialog.askstring("시간 입력", "예: 14:00 ~ 15:00")
-        color = simpledialog.askstring("색상 (선택)", "red, green, blue 등")
-        is_pinned = messagebox.askyesno("중요 일정", "이 일정을 고정할까요?")
-        is_repeat = messagebox.askyesno("반복 일정", "매주 반복할까요?")
+        time = simpledialog.askstring("\uc2dc\uac04 \uc785\ub825", "\uc608: 14:00 ~ 15:00", parent=root)
+        color = random.choice(["red", "green", "blue", "orange", "purple", "brown"])
+        is_pinned = messagebox.askyesno("\uc911\uc694 \uc77c\uc815", "\uc774 \uc77c\uc815\uc744 \uace0\uc815\ud560\uae4c\uc694?", parent=root)
+        is_repeat = messagebox.askyesno("\ubc18\ubcf5 \uc77c\uc815", "\ub9e4\uc8fc \ubc18\ubcf5\ud560\uae4c\uc694?", parent=root)
 
-        if date not in data:
-            data[date] = {"events": [], "checklist": []}
-        data[date]["events"].append({
-            "title": title, "time": time,
-            "color": color, "pinned": is_pinned
-        })
+        add_event_to_calendar(date, title, time, color, is_pinned)
 
         if is_repeat:
             repeat_weekly(date, title, time, color, is_pinned)
 
-        save_data(data)
         refresh_all()
 
     def edit_event():
-        date = cal.get_date()
+        date = get_selected_date()
         idx = event_listbox.curselection()
         if not idx: return
         idx = idx[0]
-        event = data.get(date, {}).get("events", [])[idx]
-        new_title = simpledialog.askstring("제목 수정", "새 제목:", initialvalue=event["title"])
-        new_time = simpledialog.askstring("시간 수정", "예: 14:00 ~ 15:00", initialvalue=event["time"])
-        new_color = simpledialog.askstring("색상 수정", "red, green 등", initialvalue=event.get("color", ""))
+        event = data.get(date, {}).get("events") or []
+        if idx >= len(event): return
+        event = event[idx]
+        new_title = simpledialog.askstring("\uc81c\ubaa9 \uc218\uc815", "\uc0c8 \uc81c\ubaa9:", initialvalue=event["title"], parent=root)
+        new_time = simpledialog.askstring("\uc2dc\uac04 \uc218\uc815", "\uc608: 14:00 ~ 15:00", initialvalue=event["time"], parent=root)
+        new_color = simpledialog.askstring("\uc0c9\uc0c1 \uc218\uc815", "red, green \ub4f1", initialvalue=event.get("color", ""), parent=root)
         event.update({"title": new_title, "time": new_time, "color": new_color})
         save_data(data)
         refresh_all()
 
     def delete_event():
-        date = cal.get_date()
+        date = get_selected_date()
         idx = event_listbox.curselection()
         if not idx: return
         idx = idx[0]
@@ -98,15 +132,11 @@ def launch_calendar_viewer():
         base_date = datetime.strptime(date, "%Y-%m-%d")
         for i in range(1, 5):
             next_date = (base_date + timedelta(weeks=i)).strftime("%Y-%m-%d")
-            if next_date not in data:
-                data[next_date] = {"events": [], "checklist": []}
-            data[next_date]["events"].append({
-                "title": title, "time": time, "color": color, "pinned": pinned
-            })
+            add_event_to_calendar(next_date, title, time, color, pinned)
 
     def add_check_item():
-        date = cal.get_date()
-        task = simpledialog.askstring("체크리스트", "할 일:")
+        date = get_selected_date()
+        task = simpledialog.askstring("\uccb4\ud06c\ub9ac\uc2a4\ud2b8", "\ud560 \uc77c:", parent=root)
         if not task: return
         if date not in data:
             data[date] = {"events": [], "checklist": []}
@@ -122,7 +152,6 @@ def launch_calendar_viewer():
         for widget in checklist_frame.winfo_children():
             widget.destroy()
 
-    # Widgets
     cal = Calendar(root, selectmode="day", date_pattern="yyyy-mm-dd")
     cal.pack(pady=10)
 
@@ -132,16 +161,18 @@ def launch_calendar_viewer():
     btn_frame = tk.Frame(root)
     btn_frame.pack()
 
-    ttk.Button(btn_frame, text="➕ 일정 추가", command=add_event).grid(row=0, column=0, padx=5)
-    ttk.Button(btn_frame, text="✏️ 수정", command=edit_event).grid(row=0, column=1, padx=5)
-    ttk.Button(btn_frame, text="❌ 삭제", command=delete_event).grid(row=0, column=2, padx=5)
-    ttk.Button(btn_frame, text="📖 새로고침", command=refresh_all).grid(row=0, column=3, padx=5)
+    ttk.Button(btn_frame, text="\u2795 \uc77c\uc815 \ucd94\uac00", command=add_event).grid(row=0, column=0, padx=5)
+    ttk.Button(btn_frame, text="\u270f\ufe0f \uc218\uc815", command=edit_event).grid(row=0, column=1, padx=5)
+    ttk.Button(btn_frame, text="\u274c \uc0ad\uc81c", command=delete_event).grid(row=0, column=2, padx=5)
+    ttk.Button(btn_frame, text="\ud83d\udcd6 \uc0c8\ub85c\uace0\uce68", command=refresh_all).grid(row=0, column=3, padx=5)
 
-    tk.Label(root, text="✅ 체크리스트", font=("Arial", 14)).pack(pady=10)
+    tk.Label(root, text="\u2705 \uccb4\ud06c\ub9ac\uc2a4\ud2b8", font=("Arial", 14)).pack(pady=10)
     checklist_frame = tk.Frame(root)
     checklist_frame.pack()
 
-    ttk.Button(root, text="➕ 체크 항목 추가", command=add_check_item).pack(pady=10)
+    ttk.Button(root, text="\u2795 \uccb4\ud06c \ud56d\u202f\ubcf4 \ucd94\uac00", command=add_check_item).pack(pady=10)
 
     refresh_all()
     root.mainloop()
+
+check_alarms()
