@@ -1,11 +1,10 @@
-# weather/weather_fetcher.py
 import requests
 import json
 from datetime import datetime, timedelta
 import traceback # 상세 오류 로깅용
 import os # os 모듈 추가
 
-# ✅ 기상청 API 키 설정
+# 기상청 API 키 설정
 KMA_API_KEY = os.getenv("KMA_API_KEY")
 if not KMA_API_KEY:
     # 이 부분은 애플리케이션의 전체적인 오류 처리 방식에 따라
@@ -32,7 +31,7 @@ CITY_COORDINATES = {
     # 필요에 따라 다른 도시 추가
 }
 
-# def get_kma_ultra_srt_fcst_data(service_key, city_name): # 기존 함수 정의
+# def get_kma_ultra_srt_fcst_data(service_key, city_name):
 def get_kma_ultra_srt_fcst_data(city_name): # 수정된 함수 정의 (service_key 매개변수 제거)
     """
     기상청 초단기 예보 API를 사용하여 특정 도시의 날씨 정보를 가져옵니다.
@@ -41,7 +40,7 @@ def get_kma_ultra_srt_fcst_data(city_name): # 수정된 함수 정의 (service_k
     :param city_name: 날씨 정보를 조회할 도시 이름 (CITY_COORDINATES에 정의된 이름)
     :return: 날씨 정보 딕셔너리 또는 에러 메시지 딕셔너리
     """
-    # 함수 내에서 환경 변수에서 API 키를 다시 로드하고 확인
+    
     current_kma_api_key = os.getenv("KMA_API_KEY")
     if not current_kma_api_key:
         return {"error": "KMA_API_KEY 환경변수가 설정되지 않았습니다. 확인 후 다시 시도해주세요."}
@@ -59,7 +58,7 @@ def get_kma_ultra_srt_fcst_data(city_name): # 수정된 함수 정의 (service_k
 
     endpoint = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtFcst"
     params = {
-        "serviceKey": current_kma_api_key, # 환경 변수에서 읽은 키 사용
+        "serviceKey": current_kma_api_key, 
         "numOfRows": "60",
         "pageNo": "1",
         "dataType": "JSON",
@@ -80,7 +79,7 @@ def get_kma_ultra_srt_fcst_data(city_name): # 수정된 함수 정의 (service_k
             error_msg = header.get("resultMsg", "API에서 오류 응답")
             result_code = header.get("resultCode", "N/A")
 
-            if "SERVICE KEY IS NOT REGISTERED" in error_msg.upper() or result_code == "10": # SERVICE_KEY_IS_NOT_REGISTERED_ERROR
+            if "SERVICE KEY IS NOT REGISTERED" in error_msg.upper() or result_code == "10": 
                 return {"error": "등록되지 않은 서비스 키이거나 서비스 키가 올바르지 않습니다. KMA_API_KEY 환경변수를 확인하세요."}
             elif result_code == "03": # NO_DATA
                  return {"error": f"데이터 없음: 기준시간({base_date_str} {base_time_str})에 해당하는 자료가 API 서버에 없습니다."}
