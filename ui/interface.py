@@ -9,21 +9,18 @@ from exam_ai.exam_scheduler_ai import generate_exam_plan, extract_schedule_from_
 from weather.weather_fetcher import get_kma_ultra_srt_fcst_data, CITY_COORDINATES
 import os # KMA_API_KEY 환경 변수 확인 안내를 위해
 
-# 기존 PlanMan 프로젝트의 CATEGORIES 정의 사용 (planman.py의 README.md 기준)
-CATEGORIES = ["정치", "경제", "사회·문화", "산업·과학", "세계"] # README.md와 일치시킴
+# 뉴스 카테고리
+CATEGORIES = ["정치", "경제", "사회·문화", "산업·과학", "세계"] # 
 
 def raise_topmost(win):
-    # 이 함수는 planman.py의 ui/interface.py 원본에 있어야 함 (존재 확인)
     win.attributes("-topmost", True)
     win.lift()
     win.after(0, lambda: win.attributes("-topmost", False))
 
 def on_schedule_click():
-    # 이 함수는 planman.py의 ui/interface.py 원본에서 가져옴
     launch_calendar_viewer()
 
 def on_news_click():
-    # 이 함수는 planman.py의 ui/interface.py 원본을 기반으로 통합
     news_window = tk.Toplevel()
     news_window.title("카테고리별 뉴스 보기")
     news_window.geometry("800x600")
@@ -62,7 +59,6 @@ def on_news_click():
 
 
 def on_exam_plan_click():
-    # 이 함수는 planman.py의 ui/interface.py 원본에서 가져옴 (완전한 기능)
     exam_data_list = []
 
     def add_subject():
@@ -89,10 +85,7 @@ def on_exam_plan_click():
         if not exam_data_list:
             messagebox.showwarning("입력 부족", "최소 한 과목 이상 입력하세요.", parent=popup) # parent 지정
             return
-
-        # GEMINI_API_KEY는 exam_scheduler_ai.py 내부에서 확인하므로 여기서는 중복 확인 불필요
-        # 단, 해당 모듈에서 키가 없을 때 ValueError가 발생하므로 try-except로 처리 필요
-
+            
         try:
             plan_text = generate_exam_plan(exam_data_list)
             if "❌ AI 계획 생성 실패" in plan_text or "환경변수가 설정되지 않았습니다." in plan_text : # exam_scheduler_ai.py의 오류 반환 형식 확인
@@ -111,9 +104,9 @@ def on_exam_plan_click():
         text_area = tk.Text(result_window, wrap=tk.WORD, font=("Arial", 12))
         text_area.insert(tk.END, plan_text)
         text_area.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-        text_area.config(state=tk.DISABLED) # 읽기 전용으로
+        text_area.config(state=tk.DISABLED) 
 
-        def confirm_add_to_calendar(p_text): # plan_text를 인자로 받도록 수정
+        def confirm_add_to_calendar(p_text): # 생성 계획을 텍스트로 확인
             # 사용자에게 한 번 더 확인
             if messagebox.askyesno("일정 반영", "AI가 생성한 공부 계획을 캘린더에 반영할까요?", parent=result_window):
                 schedule_list = extract_schedule_from_plan(p_text) # 인자로 받은 plan_text 사용
@@ -124,15 +117,14 @@ def on_exam_plan_click():
                     for item in schedule_list:
                         add_event_to_calendar(item['date'], item['title'], time="18:00 ~ 20:00") # 예시 시간
                     messagebox.showinfo("완료", f"{len(schedule_list)}개의 일정이 캘린더에 추가되었습니다.", parent=result_window)
-                    result_window.destroy() # 성공 시 결과창 닫기
-                    popup.destroy() # 과목 입력창도 닫기
+                    result_window.destroy() 
+                    popup.destroy()
                 except Exception as e:
                     messagebox.showerror("캘린더 추가 오류", f"일정 추가 중 오류 발생: {str(e)}", parent=result_window)
 
         # 버튼 생성 시 plan_text 전달
         ttk.Button(result_window, text="캘린더에 반영", command=lambda p=plan_text: confirm_add_to_calendar(p)).pack(pady=10)
-        # 최초 생성 시 자동 반영 질문은 제거하고, 버튼으로만 반영하도록 수정 (사용자 선택 존중)
-
+    
     popup = tk.Toplevel()
     popup.title("📘 시험 과목 입력")
     popup.geometry("400x420")
@@ -227,11 +219,10 @@ def on_weather_click():
         weather_display_labels["error"].config(text="날씨 정보 로딩 중...")
         weather_window.update_idletasks() # 로딩 메시지 즉시 표시
 
-        weather_data = get_kma_ultra_srt_fcst_data(city_name) # API 키 인자 없음
+        weather_data = get_kma_ultra_srt_fcst_data(city_name) 
 
         if "error" in weather_data:
             weather_display_labels["error"].config(text=f"오류: {weather_data['error']}")
-            # 에러 발생 시 다른 필드는 비워두기 위해 위에서 이미 초기화됨
             for key in weather_display_labels:
                 if key != "error":
                     weather_display_labels[key].config(text="")
@@ -241,11 +232,10 @@ def on_weather_click():
             weather_display_labels["forecast_time"].config(text=f"{weather_data.get('forecast_time', '시간정보 없음')}")
             weather_display_labels["temperature"].config(text=f"🌡️ 기온: {weather_data.get('temperature', 'N/A')}")
             weather_display_labels["sky_condition"].config(text=f" আকাশ: {weather_data.get('sky_condition', 'N/A')} / 습도: {weather_data.get('humidity', 'N/A')}") # 하늘, 습도 같이 표시
-            # weather_display_labels["humidity"].config(text=f"💧 습도: {weather_data.get('humidity', 'N/A')}") # 별도 라인 대신 위로 통합
+            # weather_display_labels["humidity"].config(text=f"💧 습도: {weather_data.get('humidity', 'N/A')}") 
             weather_display_labels["precipitation_form"].config(text=f"🌧️ 강수 형태: {weather_data.get('precipitation_form', 'N/A')}")
             weather_display_labels["precipitation_1h"].config(text=f"💧 1시간 강수량: {weather_data.get('precipitation_1h', 'N/A')}")
             weather_display_labels["wind_speed"].config(text=f"💨 풍속: {weather_data.get('wind_speed', 'N/A')}")
-            # 불필요한 라벨 숨기기 (습도)
             weather_display_labels["humidity"].pack_forget()
 
 
