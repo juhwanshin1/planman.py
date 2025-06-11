@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 import re
 
-# ✅ API 키 설정
+# API 키 설정
 GOOGLE_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GOOGLE_API_KEY:
     raise ValueError("GEMINI_API_KEY 환경변수가 설정되지 않았습니다.")
@@ -11,7 +11,7 @@ if not GOOGLE_API_KEY:
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel("models/gemini-1.5-flash")
 
-# ✅ AI 공부 계획 생성
+# AI 입력 프롬프트
 def generate_exam_plan(subjects):
     prompt = """
     당신은 대학생을 위한 공부 계획 도우미입니다.
@@ -36,7 +36,7 @@ def generate_exam_plan(subjects):
     except Exception as e:
         return f"❌ AI 계획 생성 실패: {str(e)}"
 
-# ✅ AI 계획 텍스트에서 일정 추출
+# 생성 계획에서 일정 추출
 def extract_schedule_from_plan(plan_text):
     schedule = []
     lines = plan_text.splitlines()
