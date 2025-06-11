@@ -35,6 +35,10 @@ Plan Man은 일정을 체계적으로 관리하고, AI 기반의 공부 계획�
 - 날씨 API를 활용하여 원하는 주도시의 날씨 확인
 
 ---
+## 실행 방법
+ 1. git clone https://github.com/juhwanshin1/planman.py (터미널 입력)
+ 2. pip install -r requirements.txt (터미널 입력)
+ 3. main.py 실행(RUN)
 
 ## ⚠️ API 키 설정 안내
 
