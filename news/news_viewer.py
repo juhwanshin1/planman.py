@@ -1,5 +1,3 @@
-# 뉴스 헤드라인 및 요약 
-
 import requests
 from bs4 import BeautifulSoup
 
