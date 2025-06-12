@@ -4,13 +4,11 @@ from news.news_viewer import get_news_items_by_category
 from plancalendar.calendar_planman import launch_calendar_viewer, add_event_to_calendar
 from tkcalendar import DateEntry
 from exam_ai.exam_scheduler_ai import generate_exam_plan, extract_schedule_from_plan
-
-# weather.weather_fetcher에서 필요한 함수 및 데이터 임포트
 from weather.weather_fetcher import get_kma_ultra_srt_fcst_data, CITY_COORDINATES
-import os # KMA_API_KEY 환경 변수 확인 안내를 위해
+import os
+from datetime import datetime, timedelta
 
-# 뉴스 카테고리
-CATEGORIES = ["정치", "경제", "사회·문화", "산업·과학", "세계"] # 
+CATEGORIES = ["정치", "경제", "사회·문화", "산업·과학", "세계"]
 
 def raise_topmost(win):
     win.attributes("-topmost", True)
@@ -32,14 +30,14 @@ def on_news_click():
         frame = ttk.Frame(tab_control)
         tab_control.add(frame, text=category)
 
-        items = get_news_items_by_category(category) # news.news_viewer에 정의됨
+        items = get_news_items_by_category(category)
 
         listbox = tk.Listbox(frame, font=("Arial", 13), height=20)
         listbox.pack(padx=10, pady=0, fill=tk.BOTH, expand=True)
 
         for item in items:
             listbox.insert(tk.END, item['title'])
-            listbox.insert(tk.END, "") # 빈 줄 추가
+            listbox.insert(tk.END, "")
 
         def make_open_article_function(local_items):
             def open_article(event):
@@ -61,6 +59,24 @@ def on_news_click():
 def on_exam_plan_click():
     exam_data_list = []
 
+    def refresh_subject_list():
+        for widget in subject_list_frame.winfo_children():
+            widget.destroy()
+        
+        for i, subject_data in enumerate(exam_data_list):
+            item_frame = ttk.Frame(subject_list_frame)
+            item_frame.pack(fill='x', pady=2, padx=5)
+
+            info_text = f"과목: {subject_data['subject']} (시험일: {subject_data['date']})"
+            ttk.Label(item_frame, text=info_text, anchor="w").pack(side=tk.LEFT, expand=True, fill='x')
+
+            delete_btn = ttk.Button(item_frame, text="삭제", width=5, command=lambda idx=i: delete_subject(idx))
+            delete_btn.pack(side=tk.RIGHT)
+
+    def delete_subject(index_to_delete):
+        del exam_data_list[index_to_delete]
+        refresh_subject_list()
+
     def add_subject():
         subject = subject_entry.get()
         date = date_entry.get_date().strftime('%Y-%m-%d')
@@ -68,7 +84,7 @@ def on_exam_plan_click():
         workload = workload_var.get()
 
         if not subject:
-            messagebox.showwarning("입력 오류", "과목명을 입력하세요.", parent=popup) # parent 지정
+            messagebox.showwarning("입력 오류", "과목명을 입력하세요.", parent=popup)
             return
 
         exam_data_list.append({
@@ -79,81 +95,113 @@ def on_exam_plan_click():
         })
 
         subject_entry.delete(0, tk.END)
-        feedback_label.config(text=f"✅ '{subject}' 과목 추가 완료")
+        refresh_subject_list()
 
     def generate_plan():
         if not exam_data_list:
-            messagebox.showwarning("입력 부족", "최소 한 과목 이상 입력하세요.", parent=popup) # parent 지정
+            messagebox.showwarning("입력 부족", "최소 한 과목 이상 추가해주세요.", parent=popup)
             return
             
+        start_date = start_date_entry.get_date().strftime('%Y-%m-%d')
+            
         try:
-            plan_text = generate_exam_plan(exam_data_list)
-            if "❌ AI 계획 생성 실패" in plan_text or "환경변수가 설정되지 않았습니다." in plan_text : # exam_scheduler_ai.py의 오류 반환 형식 확인
-                 messagebox.showerror("오류", plan_text, parent=popup) # parent 지정 및 오류 메시지 직접 사용
+            plan_text = generate_exam_plan(exam_data_list, start_date)
+            if "❌ AI 계획 생성 실패" in plan_text or "환경변수가 설정되지 않았습니다." in plan_text :
+                 messagebox.showerror("오류", plan_text, parent=popup)
                  return
 
-        except Exception as e: # generate_exam_plan 내부에서 Exception을 반환할 수도 있음
-            messagebox.showerror("오류", f"계획 생성 중 예외 발생: {str(e)}", parent=popup) # parent 지정
+        except Exception as e:
+            messagebox.showerror("오류", f"계획 생성 중 예외 발생: {str(e)}", parent=popup)
             return
 
-        result_window = tk.Toplevel(popup) # 부모 창 지정
+        result_window = tk.Toplevel(popup)
         result_window.title("공부 계획 결과")
-        result_window.geometry("600x400")
+        result_window.geometry("600x500")
         raise_topmost(result_window)
 
-        text_area = tk.Text(result_window, wrap=tk.WORD, font=("Arial", 12))
-        text_area.insert(tk.END, plan_text)
-        text_area.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-        text_area.config(state=tk.DISABLED) 
+        button_frame = ttk.Frame(result_window)
+        button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10, padx=10)
+        
+        text_frame = ttk.Frame(result_window)
+        text_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, pady=(10, 0), padx=10)
+        
+        scrollbar = ttk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        def confirm_add_to_calendar(p_text): # 생성 계획을 텍스트로 확인
-            # 사용자에게 한 번 더 확인
+        text_area = tk.Text(text_frame, wrap=tk.WORD, font=("Arial", 12), yscrollcommand=scrollbar.set)
+        text_area.insert(tk.END, plan_text)
+        text_area.config(state=tk.DISABLED)
+        text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        scrollbar.config(command=text_area.yview)
+
+        def confirm_add_to_calendar(p_text):
             if messagebox.askyesno("일정 반영", "AI가 생성한 공부 계획을 캘린더에 반영할까요?", parent=result_window):
-                schedule_list = extract_schedule_from_plan(p_text) # 인자로 받은 plan_text 사용
+                schedule_list = extract_schedule_from_plan(p_text)
                 if not schedule_list:
                     messagebox.showinfo("정보", "추출된 일정이 없습니다.", parent=result_window)
                     return
                 try:
                     for item in schedule_list:
-                        add_event_to_calendar(item['date'], item['title'], time="18:00 ~ 20:00") # 예시 시간
+                        add_event_to_calendar(item['date'], item['title'], time="18:00 ~ 20:00")
                     messagebox.showinfo("완료", f"{len(schedule_list)}개의 일정이 캘린더에 추가되었습니다.", parent=result_window)
                     result_window.destroy() 
                     popup.destroy()
                 except Exception as e:
                     messagebox.showerror("캘린더 추가 오류", f"일정 추가 중 오류 발생: {str(e)}", parent=result_window)
 
-        # 버튼 생성 시 plan_text 전달
-        ttk.Button(result_window, text="캘린더에 반영", command=lambda p=plan_text: confirm_add_to_calendar(p)).pack(pady=10)
+        ttk.Button(button_frame, text="캘린더에 반영", command=lambda p=plan_text: confirm_add_to_calendar(p)).pack()
     
     popup = tk.Toplevel()
     popup.title("📘 시험 과목 입력")
-    popup.geometry("400x420")
+    popup.geometry("400x600")
     raise_topmost(popup)
 
-    tk.Label(popup, text="과목명:").pack(pady=(10,0))
-    subject_entry = tk.Entry(popup, width=30)
-    subject_entry.pack()
+    input_frame = ttk.Frame(popup, padding="10")
+    input_frame.pack(fill='x')
 
-    tk.Label(popup, text="시험일:").pack(pady=(5,0))
-    date_entry = DateEntry(popup, date_pattern='yyyy-mm-dd', width=28) # 너비 조정
-    date_entry.pack()
+    ttk.Label(input_frame, text="과목명:").pack()
+    subject_entry = ttk.Entry(input_frame, width=30)
+    subject_entry.pack(pady=(0, 5))
 
-    tk.Label(popup, text="전공/교양:").pack(pady=(5,0))
+    ttk.Label(input_frame, text="공부 시작일:").pack()
+    start_date_entry = DateEntry(input_frame, date_pattern='yyyy-mm-dd', width=28)
+    start_date_entry.set_date(datetime.now().date())
+    start_date_entry.pack(pady=(0, 5))
+    
+    ttk.Label(input_frame, text="시험일:").pack()
+    date_entry = DateEntry(input_frame, date_pattern='yyyy-mm-dd', width=28)
+    date_entry.set_date(datetime.now().date() + timedelta(days=1))
+    date_entry.pack(pady=(0, 5))
+
+    ttk.Label(input_frame, text="전공/교양:").pack()
     category_var = tk.StringVar(value="전공")
-    # ttk.Combobox의 width는 글자수가 아닌 캐릭터 너비이므로 Entry와 다름
-    ttk.Combobox(popup, textvariable=category_var, values=["전공", "교양"], width=28, state="readonly").pack()
-    category_var.set("전공") # 기본값 설정
+    category_frame = ttk.Frame(input_frame)
+    ttk.Radiobutton(category_frame, text="전공", variable=category_var, value="전공").pack(side=tk.LEFT, padx=10)
+    ttk.Radiobutton(category_frame, text="교양", variable=category_var, value="교양").pack(side=tk.LEFT, padx=10)
+    category_frame.pack(pady=(0, 5))
 
-    tk.Label(popup, text="학습량:").pack(pady=(5,0))
+    ttk.Label(input_frame, text="학습량:").pack()
     workload_var = tk.StringVar(value="보통")
-    ttk.Combobox(popup, textvariable=workload_var, values=["많음", "보통", "적음"], width=28, state="readonly").pack()
-    workload_var.set("보통") # 기본값 설정
+    workload_frame = ttk.Frame(input_frame)
+    ttk.Radiobutton(workload_frame, text="많음", variable=workload_var, value="많음").pack(side=tk.LEFT, padx=5)
+    ttk.Radiobutton(workload_frame, text="보통", variable=workload_var, value="보통").pack(side=tk.LEFT, padx=5)
+    ttk.Radiobutton(workload_frame, text="적음", variable=workload_var, value="적음").pack(side=tk.LEFT, padx=5)
+    workload_frame.pack(pady=(0, 10))
 
-    tk.Button(popup, text="➕ 과목 추가", command=add_subject, width=15).pack(pady=(10,0))
-    feedback_label = tk.Label(popup, text="", fg="green")
-    feedback_label.pack(pady=(5,0))
+    ttk.Button(input_frame, text="➕ 과목 추가", command=add_subject, width=15).pack()
 
-    tk.Button(popup, text="📝 계획 생성 및 캘린더 반영", command=generate_plan, width=25).pack(pady=10) # 버튼명 변경
+    ttk.Separator(popup, orient='horizontal').pack(fill='x', pady=10, padx=10)
+    
+    list_container = ttk.Frame(popup)
+    list_container.pack(fill='both', expand=True)
+    ttk.Label(list_container, text="추가된 과목 목록", font=("Arial", 10, "bold")).pack()
+    subject_list_frame = ttk.Frame(list_container)
+    subject_list_frame.pack(fill='x')
+
+    bottom_frame = ttk.Frame(popup, padding="10")
+    bottom_frame.pack(side='bottom', fill='x')
+    ttk.Button(bottom_frame, text="📝 계획 생성", command=generate_plan, width=25).pack()
 
 
 def on_weather_click():
@@ -179,7 +227,7 @@ def on_weather_click():
     available_cities = list(CITY_COORDINATES.keys())
     city_combobox = ttk.Combobox(city_entry_frame, values=available_cities, width=15, state="readonly")
     if available_cities:
-        city_combobox.set(available_cities[0]) # Combobox 기본값 설정
+        city_combobox.set(available_cities[0])
     city_combobox.pack(side=tk.LEFT)
 
     result_frame = tk.Frame(weather_window, pady=10, padx=10)
@@ -196,17 +244,15 @@ def on_weather_click():
         "wind_speed": tk.Label(result_frame, text="", font=("Arial", 12), wraplength=480, anchor="w", justify="left"),
         "error": tk.Label(result_frame, text="", fg="red", font=("Arial", 11), wraplength=480, anchor="w", justify="left")
     }
-    # 순서대로 pack (온도 먼저 보이도록)
     weather_display_labels["city"].pack(pady=3, fill="x")
     weather_display_labels["forecast_time"].pack(pady=3, fill="x")
-    weather_display_labels["temperature"].pack(pady=5, fill="x") # 온도 강조
+    weather_display_labels["temperature"].pack(pady=5, fill="x")
     weather_display_labels["sky_condition"].pack(pady=3, fill="x")
     weather_display_labels["humidity"].pack(pady=3, fill="x")
     weather_display_labels["precipitation_form"].pack(pady=3, fill="x")
     weather_display_labels["precipitation_1h"].pack(pady=3, fill="x")
     weather_display_labels["wind_speed"].pack(pady=3, fill="x")
     weather_display_labels["error"].pack(pady=3, fill="x")
-
 
     def fetch_and_display_weather():
         city_name = city_combobox.get()
@@ -217,7 +263,7 @@ def on_weather_click():
         for key in weather_display_labels:
             weather_display_labels[key].config(text="")
         weather_display_labels["error"].config(text="날씨 정보 로딩 중...")
-        weather_window.update_idletasks() # 로딩 메시지 즉시 표시
+        weather_window.update_idletasks()
 
         weather_data = get_kma_ultra_srt_fcst_data(city_name) 
 
@@ -231,13 +277,11 @@ def on_weather_click():
             weather_display_labels["city"].config(text=weather_data.get("city", city_name))
             weather_display_labels["forecast_time"].config(text=f"{weather_data.get('forecast_time', '시간정보 없음')}")
             weather_display_labels["temperature"].config(text=f"🌡️ 기온: {weather_data.get('temperature', 'N/A')}")
-            weather_display_labels["sky_condition"].config(text=f" আকাশ: {weather_data.get('sky_condition', 'N/A')} / 습도: {weather_data.get('humidity', 'N/A')}") # 하늘, 습도 같이 표시
-            # weather_display_labels["humidity"].config(text=f"💧 습도: {weather_data.get('humidity', 'N/A')}") 
+            weather_display_labels["sky_condition"].config(text=f" 하늘: {weather_data.get('sky_condition', 'N/A')} / 습도: {weather_data.get('humidity', 'N/A')}")
             weather_display_labels["precipitation_form"].config(text=f"🌧️ 강수 형태: {weather_data.get('precipitation_form', 'N/A')}")
             weather_display_labels["precipitation_1h"].config(text=f"💧 1시간 강수량: {weather_data.get('precipitation_1h', 'N/A')}")
             weather_display_labels["wind_speed"].config(text=f"💨 풍속: {weather_data.get('wind_speed', 'N/A')}")
             weather_display_labels["humidity"].pack_forget()
-
 
     fetch_button = tk.Button(weather_window, text="날씨 가져오기", command=fetch_and_display_weather, font=("Arial", 12))
     fetch_button.pack(pady=10)
@@ -253,10 +297,9 @@ def launch_main_gui():
     raise_topmost(root)
 
     title_label_text = "📚 PLAN MAN"
-    title = tk.Label(root, text=title_label_text, font=("Arial", 28, "bold")) # 원본: bold 추가
+    title = tk.Label(root, text=title_label_text, font=("Arial", 28, "bold"))
     title.pack(pady=15)
 
-    # 버튼 스타일 (planman.py 원본의 height=4, font는 약간 크게)
     btn_style = {"width": 40, "height": 4, "font": ("Arial", 11)}
 
     btn1 = tk.Button(root, text="1. 일정 관리", command=on_schedule_click, **btn_style)
@@ -269,6 +312,3 @@ def launch_main_gui():
         btn.pack(pady=5)
 
     root.mainloop()
-
-# if __name__ == "__main__":
-# launch_main_gui()
