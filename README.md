@@ -38,7 +38,8 @@ Plan Man은 일정을 체계적으로 관리하고, AI 기반의 공부 계획�
 ## 실행 방법
  1. git clone https://github.com/juhwanshin1/planman.py (터미널 입력)
  2. pip install -r requirements.txt (터미널 입력)
- 3. main.py 실행(RUN)
+ 3. API KEY를 .env 파일 내에 변수에 맞게 저장
+ 4. main.py 실행(RUN)
 
 ## ⚠️ API 키 설정 안내
 
