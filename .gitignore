@@ -1,23 +1,29 @@
-# Python
+# 보안
+.env
+
+# 파이썬 생성 파일
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
+
+# 가상 환경
 env/
 .venv/
 venv/
+
+# Pip 패키지 관리자 생성 파일
 pip-selfcheck.json
 pip-log.txt
 
-# IDE
+# IDE (개발 도구) 설정
 .idea/
 .vscode/
 
-# OS generated files
+# 운영체제(OS) 생성 파일
 .DS_Store
 Thumbs.db
 
-# Application specific
+# 애플리케이션 데이터 및 로그
 schedule_data.json
 *.log
