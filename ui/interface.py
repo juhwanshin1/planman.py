@@ -67,7 +67,7 @@ def on_exam_plan_click():
             item_frame = ttk.Frame(subject_list_frame)
             item_frame.pack(fill='x', pady=2, padx=5)
 
-            info_text = f"과목: {subject_data['subject']} (시험일: {subject_data['date']})"
+            info_text = f"과목: {subject_data['subject']} ({subject_data['category']}/{subject_data['workload']}) - 시험일: {subject_data['date']}"
             ttk.Label(item_frame, text=info_text, anchor="w").pack(side=tk.LEFT, expand=True, fill='x')
 
             delete_btn = ttk.Button(item_frame, text="삭제", width=5, command=lambda idx=i: delete_subject(idx))
